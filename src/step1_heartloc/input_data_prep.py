@@ -96,13 +96,20 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
     data_dir        - required : 
     data_file       - required : 
     file_list       - required : 
-    cube_length     - required :
-    input_spacing   - required :
-    has_manual_seg  - required :
-    fill_mask_holes - required :
-
+    cube_length     - required : size of the cube (if list, first element is used)
+    input_spacing   - required : spacing of the input data (if list, first element is used)
+    has_manual_seg  - required : whether manual segmentation is available
+    fill_mask_holes - required : whether to fill holes in masks
   """
   
+  # If cube_length is a list, use the first element
+  if isinstance(cube_length, list):
+    cube_length = cube_length[0]
+  
+  # If input_spacing is a list, use the first element
+  if isinstance(input_spacing, list):
+    input_spacing = input_spacing[0]
+
   nrrd_reader = sitk.ImageFileReader()
 
   # path where the *.h5 file storing ... will be saved
@@ -190,7 +197,6 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
                                      offset:offset + cube_length,
                                      offset:offset + cube_length])
 
-      # FIXME: this will raise an error if the mask is not properly formatted (e.g., has only one label!)
       # transform into binary mask
       msk_cropped[msk_cropped == 2] = 0
       msk_cropped[msk_cropped > 0] = 1

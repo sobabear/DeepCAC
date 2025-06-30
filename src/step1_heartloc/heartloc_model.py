@@ -5,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
@@ -15,9 +15,9 @@ import os, math
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 import numpy as np
-import tensorflow
+import tensorflow as tf
 
-tensorflow.compat.v1.logging.set_verbosity(tensorflow.compat.v1.logging.ERROR)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from tensorflow.keras import utils
 from tensorflow.keras import Input
@@ -51,7 +51,7 @@ def get_unet_3d(down_steps, input_shape, pool_size=(2, 2, 2), conv_size=(3, 3, 3
                 mgpu=1, ext=False, drop_out=0.5):
   # Convert input_shape to tuple if it's a list
   if isinstance(input_shape, list):
-    input_shape = tuple(input_shape + [1])  # Add channel dimension
+    input_shape = tuple(input_shape)  # Just convert to tuple without adding channel
   
   if down_steps == 4 and not ext:
     return get_unet_3d_4(input_shape, pool_size=pool_size, conv_size=conv_size,
@@ -62,6 +62,27 @@ def get_unet_3d(down_steps, input_shape, pool_size=(2, 2, 2), conv_size=(3, 3, 3
 
 # 4 Down steps - MultiGPU
 def get_unet_3d_4(input_shape, pool_size, conv_size, initial_learning_rate, mgpu):
+  # Create the model
+  strategy = None
+  if mgpu > 1:
+    print('Compiling multi GPU model...')
+    strategy = tf.distribute.MirroredStrategy()
+    print(f'Number of devices: {strategy.num_replicas_in_sync}')
+  
+  if strategy:
+    with strategy.scope():
+      model = create_unet_model(input_shape, pool_size, conv_size, initial_learning_rate)
+  else:
+    print('Compiling single GPU model...')
+    model = create_unet_model(input_shape, pool_size, conv_size, initial_learning_rate)
+  
+  return model
+
+def create_unet_model(input_shape, pool_size, conv_size, initial_learning_rate):
+  # Ensure input_shape is a tuple
+  if isinstance(input_shape, list):
+    input_shape = tuple(input_shape)
+
   inputs = Input(input_shape, name='model_input')
   conv1 = Conv3D(32, conv_size, activation='relu', padding='same', name='conv_1_1')(inputs)
   conv1 = Conv3D(64, conv_size, activation='relu', padding='same', name='conv_1_2')(conv1)
@@ -105,19 +126,7 @@ def get_unet_3d_4(input_shape, pool_size, conv_size, initial_learning_rate, mgpu
   conv10 = Conv3D(1, (1, 1, 1), name='conv_10')(conv9)
   act = Activation('sigmoid', name='act')(conv10)
 
-  if mgpu == 1:
-    print('Compiling single GPU model...')
-    model = Model(inputs=inputs, outputs=act)
-    model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
-                  metrics=[dice_coef])
-    return model
-  elif mgpu > 1:
-    print('Compiling multi GPU model...')
-    model = Model(inputs=inputs, outputs=act)
-    parallel_model = multi_gpu_model(model, gpus=mgpu)
-    parallel_model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
-                           metrics=[dice_coef])
-    return parallel_model
-  else:
-    print('ERROR Wrong number of GPUs defined')
-    return
+  model = Model(inputs=inputs, outputs=act)
+  model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
+                metrics=[dice_coef])
+  return model
