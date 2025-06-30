@@ -5,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
   Deep-learning-based heart localization
@@ -43,7 +43,7 @@ args = parser.parse_args()
 conf_file_path = os.path.join(base_conf_file_path, args.conf)
 
 with open(conf_file_path) as f:
-  yaml_conf = yaml.load(f, Loader = yaml.FullLoader)
+  yaml_conf = yaml.safe_load(f)
 
 
 # input-output
@@ -111,7 +111,7 @@ if not os.path.exists(model_output_nrrd_dir_path): os.mkdir(model_output_nrrd_di
 ## ----------------------------------------
 
 # run the localization pipeline
-print "\n--- STEP 1 - HEART LOCALIZATION ---\n"
+print("\n--- STEP 1 - HEART LOCALIZATION ---\n")
 
 # data preparation 
 export_data.export_data(raw_data_dir_path = raw_data_dir_path,

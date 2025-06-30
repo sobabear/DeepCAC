@@ -5,13 +5,12 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
 
 import os
-
 import sys
 import tables
 import pickle
@@ -19,8 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.ndimage import measurements
-
-import heartloc_model
+from . import heartloc_model  # Updated import to use relative import
 
 def save_png(patientID, output_dir_png, img, msk, pred):
   maskIndicesMsk = np.where(msk != 0)
@@ -66,7 +64,8 @@ def test(model, dataDir, output_dir_npy, output_dir_png, pkl_file,
   model.load_weights(weights_file)
 
   testFileHdf5 = tables.open_file(os.path.join(dataDir, test_file), "r")
-  pklData = pickle.load(open(os.path.join(dataDir, pkl_file), 'rb'))
+  with open(os.path.join(dataDir, pkl_file), 'rb') as f:  # Updated pickle loading
+    pklData = pickle.load(f)
 
   # Get data in one list for further processing
   testDataRaw = []
@@ -90,14 +89,14 @@ def test(model, dataDir, output_dir_npy, output_dir_png, pkl_file,
   imgsTrue = np.zeros((numData, size, size, size), dtype=np.float64)
   msksTrue = np.zeros((numData, size, size, size), dtype=np.float64)
 
-  for i in xrange(0, len(testDataRaw) + 1, mgpu):
+  for i in range(0, len(testDataRaw) + 1, mgpu):  # Updated xrange to range
     imgTest = np.zeros((4, size, size, size), dtype=np.float64)
 
     for j in range(mgpu):
       # If the number of test images is not mod 4 == 0, just redo the last file severall times
       patientIndex = min(len(testDataRaw) - 1, i + j)
       patientID = testDataRaw[patientIndex][0]
-      print 'Processing patient', patientID
+      print(f'Processing patient {patientID}')
       # Store data for score calculation
       imgsTrue[patientIndex, :, :, :] = testDataRaw[patientIndex][1]
       msksTrue[patientIndex, :, :, :] = testDataRaw[patientIndex][2]
@@ -110,7 +109,6 @@ def test(model, dataDir, output_dir_npy, output_dir_png, pkl_file,
       patientID = testDataRaw[patientIndex][0]
       np.save(os.path.join(output_dir_npy, patientID + '_pred'),
               [[patientID], imgsTrue[patientIndex], msksTrue[patientIndex], msksPred[j, :, :, :, 0]])
-              #[[patientID], imgsTrue[patientIndex, :, :, :], msksTrue[patientIndex, :, :, :], msksPred[j, :, :, :, 0]])
 
     if png:
       for j in range(mgpu):
@@ -122,7 +120,7 @@ def test(model, dataDir, output_dir_npy, output_dir_png, pkl_file,
 def run_inference(model_output_dir_path, model_input_dir_path, model_weights_dir_path,
                   crop_size, export_png, model_down_steps, extended, has_manual_seg, weights_file_name):
 
-  print "\nDeep Learning model inference using 4xGPUs:" 
+  print("\nDeep Learning model inference using 4xGPUs:")
   
   mgpu = 4
 
@@ -138,7 +136,7 @@ def run_inference(model_output_dir_path, model_input_dir_path, model_weights_dir
 
   weights_file = os.path.join(model_weights_dir_path, weights_file_name)
 
-  print 'Loading saved model from "%s"'%(weights_file)
+  print(f'Loading saved model from "{weights_file}"')
   
   input_shape = (crop_size, crop_size, crop_size, 1)
   model = heartloc_model.get_unet_3d(down_steps = model_down_steps,

@@ -21,26 +21,26 @@ def run_core(patient):
   nrrdWriter = sitk.ImageFileWriter()
 
   patientID = patient[0]
-  print "Processing patient", patientID
+  print(f"Processing patient {patientID}")
 
   try:
     nrrdReader.SetFileName(patient[1])
     img_SITK_True_RAW = nrrdReader.Execute()
   except Exception as e:
-    print 'Exception thrown when reading patient_NRRD_True_RAW_file:', patient[1], e
+    print(f'Exception thrown when reading patient_NRRD_True_RAW_file: {patient[1]} {e}')
     return
 
   try:
     nrrdReader.SetFileName(patient[3])
     img_SITK_True_112 = nrrdReader.Execute()
   except Exception as e:
-    print 'Exception thrown when reading patient_NRRD_True_112_file:', patient[3], e
+    print(f'Exception thrown when reading patient_NRRD_True_112_file: {patient[3]} {e}')
     return
 
   try:
     patient_NPY_Pred_112 = np.load(patient[4], allow_pickle=True)
   except Exception as e:
-    print 'Exception thrown when reading patient_NPY_Pred_112_file', patient[4], e
+    print(f'Exception thrown when reading patient_NPY_Pred_112_file {patient[4]} {e}')
     return
 
   msk_NPY_Pred_112 = patient_NPY_Pred_112[3]
@@ -79,7 +79,7 @@ def run_core(patient):
 
   msk_NPY_Pred_512 = sitk.GetArrayFromImage(msk_SITK_Pred_512)
   if np.sum(msk_NPY_Pred_512) == 0:
-    print 'WARNING: Found emtpy mask for patient', patientID
+    print(f'WARNING: Found emtpy mask for patient {patientID}')
 
   mask = [[[0, 0, 0], [0, 1, 0], [0, 0, 0]],
           [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
@@ -110,7 +110,7 @@ def run_core(patient):
 
 def upsample_results(curated_dir_path, resampled_dir_path, model_output_dir_path, model_output_nrrd_dir_path, num_cores):
 
-  print "\nData upsampling:"
+  print("\nData upsampling:")
 
   THRESHOLD = 0.9
   pred_input = os.path.join(model_output_dir_path, 'npy')
@@ -130,15 +130,15 @@ def upsample_results(curated_dir_path, resampled_dir_path, model_output_dir_path
     if (not os.path.exists(patient_NRRD_True_RAW_file) or
         not os.path.exists(patient_NRRD_True_112_file) or
         not os.path.exists(patient_NPY_Pred_112_file)):
-      print 'File doesnt exist', patientID
-      print patient_NRRD_True_RAW_file
-      print patient_NRRD_True_112_file
-      print patient_NPY_Pred_112_file
+      print(f'File doesnt exist {patientID}')
+      print(patient_NRRD_True_RAW_file)
+      print(patient_NRRD_True_112_file)
+      print(patient_NPY_Pred_112_file)
       continue
     patients.append([patientID, patient_NRRD_True_RAW_file, msk_NRRD_True_RAW_file, patient_NRRD_True_112_file,
                      patient_NPY_Pred_112_file, patient_SITK_Pred_512_file])
   
-  print 'Found', len(patients), 'patients under "%s"'%(curated_dir_path)
+  print(f'Found {len(patients)} patients under "{curated_dir_path}"')
 
   # Process patients
   if num_cores == 1:
@@ -150,5 +150,5 @@ def upsample_results(curated_dir_path, resampled_dir_path, model_output_dir_path
     pool.close()
     pool.join()
   else:
-    print 'Wrong core number set in config file'
+    print('Wrong core number set in config file')
     sys.exit()

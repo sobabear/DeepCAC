@@ -49,6 +49,10 @@ def dice_coef_loss(y_true, y_pred):
 
 def get_unet_3d(down_steps, input_shape, pool_size=(2, 2, 2), conv_size=(3, 3, 3), initial_learning_rate=0.00001,
                 mgpu=1, ext=False, drop_out=0.5):
+  # Convert input_shape to tuple if it's a list
+  if isinstance(input_shape, list):
+    input_shape = tuple(input_shape + [1])  # Add channel dimension
+  
   if down_steps == 4 and not ext:
     return get_unet_3d_4(input_shape, pool_size=pool_size, conv_size=conv_size,
                          initial_learning_rate=initial_learning_rate, mgpu=mgpu)
@@ -102,18 +106,18 @@ def get_unet_3d_4(input_shape, pool_size, conv_size, initial_learning_rate, mgpu
   act = Activation('sigmoid', name='act')(conv10)
 
   if mgpu == 1:
-    print 'Compiling single GPU model...'
+    print('Compiling single GPU model...')
     model = Model(inputs=inputs, outputs=act)
     model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
                   metrics=[dice_coef])
     return model
   elif mgpu > 1:
-    print 'Compiling multi GPU model...'
+    print('Compiling multi GPU model...')
     model = Model(inputs=inputs, outputs=act)
     parallel_model = multi_gpu_model(model, gpus=mgpu)
     parallel_model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
                            metrics=[dice_coef])
     return parallel_model
   else:
-    print 'ERROR Wrong number of GPUs defined'
+    print('ERROR Wrong number of GPUs defined')
     return

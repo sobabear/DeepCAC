@@ -59,7 +59,7 @@ def get_files(input_dir, create_test_set = None, has_manual_seg = False, train_s
         # append to the patient list the two-elements list with the img/msk file paths
         patients.append([img_file, msk_file])
   
-  print 'Found', len(patients), 'patients under "%s" folder.'%(input_dir)
+  print(f'Found {len(patients)} patients under "{input_dir}" folder.')
 
   # train/tune/test split (indices)
   train_split_idx = int(len(patients) * train_split)
@@ -81,7 +81,7 @@ def get_files(input_dir, create_test_set = None, has_manual_seg = False, train_s
     return patients
   
   else:
-    print 'Error - "create_test_set" argument should either be "Split", "All" or "None".'
+    print('Error - "create_test_set" argument should either be "Split", "All" or "None".')
 
 
 ## ----------------------------------------
@@ -137,7 +137,7 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
     msk_file = file[1]
     
     pat_id = os.path.basename(img_file).replace('_img.nrrd', '')
-    print 'Processing patient', pat_id
+    print(f'Processing patient {pat_id}')
 
     # read SITK image 
     nrrd_reader.SetFileName(img_file)
@@ -146,11 +146,11 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
     
     # sanity check on size and spacing
     if not img_sitk.GetSize() == (cube_length, cube_length, cube_length):
-      print 'Wrong img SIZE for patient:', pat_id
+      print(f'Wrong img SIZE for patient: {pat_id}')
       continue
     if (not np.round(img_sitk.GetSpacing()[0], 2) == np.round(img_sitk.GetSpacing()[1], 2) ==
             np.round(img_sitk.GetSpacing()[2], 2) == input_spacing):
-      print 'Wrong img SPACING for patient:', pat_id, img_sitk.GetSpacing()
+      print(f'Wrong img SPACING for patient: {pat_id} {img_sitk.GetSpacing()}')
       continue
 
     # crop image from 100px to 96px (as 96 = 12*2^3 is CNN friendly)
@@ -178,11 +178,11 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
       
       # sanity check on size and spacing
       if not img_sitk.GetSize() == msk_sitk.GetSize():
-        print 'Wrong msk SIZE for patient:', pat_id
+        print(f'Wrong msk SIZE for patient: {pat_id}')
         continue
       if (not np.round(msk_sitk.GetSpacing()[0], 2) == np.round(msk_sitk.GetSpacing()[1], 2) ==
               np.round(msk_sitk.GetSpacing()[2], 2) == input_spacing):
-        print 'Wrong msk SPACING for patient:', pat_id, msk_sitk.GetSpacing()
+        print(f'Wrong msk SPACING for patient: {pat_id} {msk_sitk.GetSpacing()}')
         continue
       
       # crop mask from 100px to 96px (as 96 = 12*2^3 is CNN friendly)
@@ -211,34 +211,34 @@ def write_data_file(data_dir, data_file, file_list, cube_length, input_spacing, 
 
 def input_data_prep(resampled_dir_path, model_input_dir_path, create_test_set, crop_size, new_spacing, has_manual_seg, fill_mask_holes):
   
-  print "\nInput data preparation:"
+  print("\nInput data preparation:")
   
   if create_test_set == 'Split':
-    print 'Loading input data from "%s"'%(resampled_dir_path)
+    print(f'Loading input data from "{resampled_dir_path}"')
     
     trainFiles, testFiles, valFiles = get_files(resampled_dir_path, create_test_set, has_manual_seg)
     
-    print 'Writing data file... '
+    print('Writing data file... ')
     write_data_file(model_input_dir_path, "step1_training_data", trainFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
     write_data_file(model_input_dir_path, "step1_val_data", valFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
     write_data_file(model_input_dir_path, "step1_test_data", testFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
   
   elif create_test_set == 'None':
-    print 'Loading input data from "%s"'%(resampled_dir_path)
+    print(f'Loading input data from "{resampled_dir_path}"')
     
     trainFiles, valFiles = get_files(resampled_dir_path, create_test_set, has_manual_seg)
     
-    print 'Writing data file... '
+    print('Writing data file... ')
     write_data_file(model_input_dir_path, "step1_training_data", trainFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
     write_data_file(model_input_dir_path, "step1_val_data", valFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
   
   elif create_test_set == 'All':
-    print 'Loading input data from "%s"'%(resampled_dir_path)
+    print(f'Loading input data from "{resampled_dir_path}"')
     
     testFiles = get_files(resampled_dir_path, create_test_set, has_manual_seg)
     
-    print 'Writing data file... '
+    print('Writing data file... ')
     write_data_file(model_input_dir_path, "step1_test_data", testFiles, crop_size, new_spacing, has_manual_seg, fill_mask_holes)
   
   else:
-    print 'Error - wrong setting for "createTestSet"'
+    print('Error - wrong setting for "createTestSet"')

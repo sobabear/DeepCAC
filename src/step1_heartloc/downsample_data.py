@@ -1,4 +1,3 @@
-
 """
   ----------------------------------------
      HeartLoc - DeepCAC pipeline step1
@@ -6,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
 
   After the data (CT-mask pair, or just CT) is processed by the first script,
@@ -22,7 +21,7 @@ import os
 import sys
 import numpy as np
 import multiprocessing
-import cPickle as pickle
+import pickle
 import SimpleITK as sitk
 
 from glob import glob
@@ -38,37 +37,30 @@ def resample_sitk(data_sitk, new_spacing, method):
     data_sitk   - required : SimpleITK image, resulting from sitk.ImageFileReader().Execute()
     new_spacing - required : desired spacing (equal for all the axes), in mm, of the output data
     method      - required : SimpleITK interpolation method (e.g., sitk.sitkLinear)
-
-  FIXME: change this into something like downsample_sitk (also, data_sitk to img_sitk for homog.)
-  (as this function is especially used for downsampling, right?)
-  Alternatively, exploit "resample_sitk" in exportData.py, maybe creating a lib folder and making
-  some of the modules reusable (AIM would greatly benefit by this anyway)
   """
 
   # get size, in voxels, and spacing, in mm, of the SITK image to downsample
   orig_size = data_sitk.GetSize()
   orig_spacing = data_sitk.GetSpacing()
 
-  # compute the new size, in voxels
-  new_size = int(orig_size[0]*orig_spacing[0]/new_spacing)
+  # If new_spacing is a list, use the first element (assuming uniform spacing)
+  if isinstance(new_spacing, list):
+    new_spacing = new_spacing[0]
 
-  """
-  sitk.ResampleImageFilter() arguments:
-    - SimpleITK image
-    - Output image size
-    - Transform, interface to ITK transform objects to be used wiht ResampleImageFilter
-    - Interpolation method
-    - Output image origin
-    - Output image spacing
-    - Output image direction
-    - Default pixel value
-    - Output pixel type
-  """
+  # compute the new size, in voxels
+  new_size = [int(orig_size[i] * orig_spacing[i] / new_spacing) for i in range(3)]
 
   res_filter = sitk.ResampleImageFilter()
-  img_sitk = res_filter.Execute(data_sitk, [new_size, new_size, new_size], sitk.Transform(), method,
-                                data_sitk.GetOrigin(), [new_spacing, new_spacing, new_spacing],
-                                data_sitk.GetDirection(), 0, data_sitk.GetPixelIDValue())
+  res_filter.SetSize(new_size)
+  res_filter.SetTransform(sitk.Transform())
+  res_filter.SetInterpolator(method)
+  res_filter.SetOutputOrigin(data_sitk.GetOrigin())
+  res_filter.SetOutputSpacing([new_spacing] * 3)  # Uniform spacing for all dimensions
+  res_filter.SetOutputDirection(data_sitk.GetDirection())
+  res_filter.SetDefaultPixelValue(0)
+  res_filter.SetOutputPixelType(data_sitk.GetPixelIDValue())
+
+  img_sitk = res_filter.Execute(data_sitk)
   
   return img_sitk, orig_size, orig_spacing
 
@@ -86,9 +78,11 @@ def resize_sitk(data_sitk, crop_size, pad_value = -1024):
     data_sitk - required : SimpleITK image, resulting from sitk.ImageFileReader().Execute()
     crop_size - required : desired size (equal for all the axes), in voxels, of the output data
     pad_value - required : constant value used to pad the image (defaults to the HU of air, -1024)
-
-    # FIXME: change "crop_size" to something more significant?
   """
+
+  # If crop_size is a list, use the first element (assuming uniform size)
+  if isinstance(crop_size, list):
+    crop_size = crop_size[0]
 
   ## ----------------------------------------
   # crop volumes which are bigger than "crop_size" (all the axes)
@@ -196,14 +190,14 @@ def run_core(resampled_dir_path, crop_size, new_spacing, has_manual_seg, result_
   patient_id = os.path.basename(img_file).replace('_img.nrrd', '')
   img_out_file = os.path.join(resampled_dir_path, patient_id + '_img.nrrd')
 
-  print 'Processing patient', patient_id
+  print(f'Processing patient {patient_id}')
 
   # read the patient image data
   try:
     nrrd_reader.SetFileName(img_file)
     img_sitk = nrrd_reader.Execute()
   except:
-    print 'EXCEPTION: Unable to read NRRD image file for patient', patient_id
+    print(f'EXCEPTION: Unable to read NRRD image file for patient {patient_id}')
     return
 
   # downsample CT data
@@ -218,9 +212,9 @@ def run_core(resampled_dir_path, crop_size, new_spacing, has_manual_seg, result_
 
   # sanity checks on the size and spacing of the resulting image
   if not (crop_size, crop_size, crop_size) == final_size_img:
-    print 'Wrong final IMG size', patient_id, final_size_img
+    print(f'Wrong final IMG size {patient_id} {final_size_img}')
   if not (new_spacing, new_spacing, new_spacing) == final_spacing_img:
-    print 'Wrong final IMG spacing', patient_id, final_spacing_img
+    print(f'Wrong final IMG spacing {patient_id} {final_spacing_img}')
 
   # if everything is all right, save the downsampled and resized CT image as *.nrrd
   save_nrrd(data_sitk = img_sitk, outfile_path = img_out_file)
@@ -240,7 +234,7 @@ def run_core(resampled_dir_path, crop_size, new_spacing, has_manual_seg, result_
         nrrd_reader.SetFileName(msk_file)
         msk_sitk = nrrd_reader.Execute()
       except Exception as e:
-        print 'EXCEPTION: Unable to read NRRD mask file for patient', patient_id, e
+        print(f'EXCEPTION: Unable to read NRRD mask file for patient {patient_id} {e}')
         return
 
       # downsample segmask data
@@ -260,18 +254,18 @@ def run_core(resampled_dir_path, crop_size, new_spacing, has_manual_seg, result_
       # FIXME: try-except instead of returns?
       # sanity checks on the size and spacing of the original mask
       if not tuple(np.round(orig_size_img, 1)) == tuple(np.round(orig_size_mask, 1)):
-        print 'Wrong original MSK size', patient_id, tuple(np.round(orig_size_img, 1)), tuple(np.round(orig_size_mask, 1))
+        print(f'Wrong original MSK size {patient_id} {tuple(np.round(orig_size_img, 1))} {tuple(np.round(orig_size_mask, 1))}')
         return
       if not tuple(np.round(orig_spacing_img, 1)) == tuple(np.round(orig_spacing_mask, 1)):
-        print 'Wrong original MSK spacing', patient_id, tuple(np.round(orig_spacing_img, 1)), tuple(np.round(orig_spacing_mask, 1))
+        print(f'Wrong original MSK spacing {patient_id} {tuple(np.round(orig_spacing_img, 1))} {tuple(np.round(orig_spacing_mask, 1))}')
         return
 
       # sanity checks on the size and spacing of the resulting mask
       if not tuple(np.round(final_size_img, 1)) == tuple(np.round(final_size_mask, 1)):
-        print 'Wrong final MSK size', patient_id, tuple(np.round(final_size_img, 1)), tuple(np.round(final_size_mask, 1))
+        print(f'Wrong final MSK size {patient_id} {tuple(np.round(final_size_img, 1))} {tuple(np.round(final_size_mask, 1))}')
         return
       if not tuple(np.round(final_spacing_mask, 1)) == tuple(np.round(final_spacing_mask, 1)):
-        print 'Wrong final MSK spacing', patient_id, tuple(np.round(final_spacing_img, 1)), tuple(np.round(final_spacing_mask, 1))
+        print(f'Wrong final MSK spacing {patient_id} {tuple(np.round(final_spacing_img, 1))} {tuple(np.round(final_spacing_mask, 1))}')
         return
     # if the mask file does not exist (has_manual_seg == True, so it should), return
     else:
@@ -311,11 +305,11 @@ def downsample_data(curated_dir_path, resampled_dir_path, model_input_dir_path,
 
   """
   
-  print "\nData downsampling:"
+  print("\nData downsampling:")
   
   img_files = glob(curated_dir_path + '/*_img.nrrd')
   
-  print 'Found', len(img_files), 'patients under "%s" folder.'%(curated_dir_path)
+  print(f'Found {len(img_files)} patients under "{curated_dir_path}" folder.')
 
   # if single core, then run core as one would normally do with a function
   if num_cores == 1:
@@ -338,12 +332,12 @@ def downsample_data(curated_dir_path, resampled_dir_path, model_input_dir_path,
       pool.join()
       result_dict = dict(result_dict)
   else:
-    print 'Wrong number of CPU cores specified in the config file.'
+    print('Wrong number of CPU cores specified in the config file.')
     sys.exit()
 
   # save pkl file for image properties
   results_file_name = os.path.join(model_input_dir_path, 'step1_downsample_results.pkl')
   
-  print 'Saving results dictionary...'
+  print('Saving results dictionary...')
   with open(results_file_name, 'wb') as results_file:
     pickle.dump(result_dict, results_file, pickle.HIGHEST_PROTOCOL)
