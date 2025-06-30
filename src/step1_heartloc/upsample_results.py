@@ -5,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
@@ -38,12 +38,12 @@ def run_core(patient):
     return
 
   try:
-    patient_NPY_Pred_112 = np.load(patient[4], allow_pickle=True)
+    # Load the .npz file and get the prediction array
+    with np.load(patient[4]) as data:
+      msk_NPY_Pred_112 = data['prediction']
   except Exception as e:
     print(f'Exception thrown when reading patient_NPY_Pred_112_file {patient[4]} {e}')
     return
-
-  msk_NPY_Pred_112 = patient_NPY_Pred_112[3]
 
   # Remove all but the biggest segmented volume
   msk_NPY_Pred_112[msk_NPY_Pred_112 > 0.9] = 1
@@ -66,16 +66,18 @@ def run_core(patient):
   upSize = img_SITK_True_RAW.GetSize()
   upSpacing = img_SITK_True_RAW.GetSpacing()
 
+  # Create and configure the resampling filter
   resFilter = sitk.ResampleImageFilter()
-  msk_SITK_Pred_512 = resFilter.Execute(patient_SITK_Pred_112,
-                                        upSize,
-                                        sitk.Transform(),
-                                        sitk.sitkNearestNeighbor,
-                                        img_SITK_True_RAW.GetOrigin(),
-                                        upSpacing,
-                                        img_SITK_True_RAW.GetDirection(),
-                                        0,
-                                        img_SITK_True_RAW.GetPixelIDValue())
+  resFilter.SetSize(upSize)
+  resFilter.SetTransform(sitk.Transform())
+  resFilter.SetInterpolator(sitk.sitkNearestNeighbor)
+  resFilter.SetOutputOrigin(img_SITK_True_RAW.GetOrigin())
+  resFilter.SetOutputSpacing(upSpacing)
+  resFilter.SetOutputDirection(img_SITK_True_RAW.GetDirection())
+  resFilter.SetDefaultPixelValue(0)
+  
+  # Execute the resampling
+  msk_SITK_Pred_512 = resFilter.Execute(patient_SITK_Pred_112)
 
   msk_NPY_Pred_512 = sitk.GetArrayFromImage(msk_SITK_Pred_512)
   if np.sum(msk_NPY_Pred_512) == 0:
@@ -124,7 +126,7 @@ def upsample_results(curated_dir_path, resampled_dir_path, model_output_dir_path
     # Get all files
     msk_NRRD_True_RAW_file = patient_NRRD_True_RAW_file.replace('_img', '_msk')
     patient_NRRD_True_112_file = os.path.join(resampled_dir_path, patientID + '_img.nrrd')
-    patient_NPY_Pred_112_file = os.path.join(pred_input, patientID + '_pred.npy')
+    patient_NPY_Pred_112_file = os.path.join(pred_input, patientID + '_pred.npz')
     patient_SITK_Pred_512_file = os.path.join(model_output_nrrd_dir_path, patientID + '_pred.nrrd')
 
     if (not os.path.exists(patient_NRRD_True_RAW_file) or
