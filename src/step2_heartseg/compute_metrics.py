@@ -100,7 +100,7 @@ def runCore(raw_spacing, results_list, patientDict):
   nrrdReader = sitk.ImageFileReader()
 
   patientID = patientDict['PatientID']
-  print 'Processing patient', patientID
+  print(f'Processing patient {patientID}')
 
   # LOAD DATA
   nrrdReader.SetFileName(patientDict['imgFile'])
@@ -122,15 +122,15 @@ def runCore(raw_spacing, results_list, patientDict):
   prdCube[prdCube<1] = 0
 
   if np.sum(mskCube) == 0:
-    print 'ERROR - Found empty manual mask for patient', patientID
+    print(f'ERROR - Found empty manual mask for patient {patientID}')
     return
 
   if np.sum(prdCube) == 0:
-    print 'ERROR - Found empty prd mask for patient', patientID
+    print(f'ERROR - Found empty prd mask for patient {patientID}')
     return
 
   if not prdCube.shape == imgCube.shape:
-    print 'Wrong size for patient', patientID, prdCube.shape
+    print(f'Wrong size for patient {patientID} {prdCube.shape}')
     return
 
   try:
@@ -181,7 +181,7 @@ def runCore(raw_spacing, results_list, patientDict):
 
     results_list.append(resultDict)
   except Exception as e:
-    print 'EXCEPTION', patientID, e
+    print(f'EXCEPTION {patientID} {e}')
     resultDict = {}
     resultDict['PatientID'] = patientID
     resultDict['MaxImgHu'] = 'NA'
@@ -219,21 +219,21 @@ def getFiles(patient_list, raw_dir, pred_dir, mask):
 
     imgFile = os.path.join(raw_dir, patient_id + '_img.nrrd')
     if not os.path.exists(imgFile):
-      print 'ERROR: No image file found for patient', patient_id
+      print(f'ERROR: No image file found for patient {patient_id}')
       continue
     patient_dict['imgFile'] = imgFile
 
     if mask:
       msk_file = os.path.join(raw_dir, patient_id + '_msk.nrrd')
       if not os.path.exists(msk_file):
-        print 'ERROR: No mask file found for patient', patient_id
+        print(f'ERROR: No mask file found for patient {patient_id}')
         continue
       patient_dict['mskFile'] = msk_file
 
     patient_dict['prdFile'] = prd_file
     patient_list.append(patient_dict)
 
-  print 'Found', len(patient_list), 'images under "%s"'%(pred_dir)
+  print(f'Found {len(patient_list)} images under "{pred_dir}"')
   return patient_list
 
 ## ----------------------------------------
@@ -241,8 +241,8 @@ def getFiles(patient_list, raw_dir, pred_dir, mask):
 
 def compute_metrics(cur_dir, pred_dir, output_dir, raw_spacing, num_cores, mask):
 
-  print "\nComputing metrics:"
-  print 'Loading patient data under "%s"'%(cur_dir)
+  print("\nComputing metrics:")
+  print(f'Loading patient data under "{cur_dir}"')
   patient_list = []
   patient_list = getFiles(patient_list, cur_dir, pred_dir, mask)
 
@@ -259,11 +259,11 @@ def compute_metrics(cur_dir, pred_dir, output_dir, raw_spacing, num_cores, mask)
       pool.join()
       results_list = list(results_list)
   else:
-    print 'Wrong core number set in config file'
+    print('Wrong core number set in config file')
     sys.exit()
 
   result_file = os.path.join(output_dir, 'results.csv')
-  print 'Saving results to csv file under "%s"'%(result_file)
+  print(f'Saving results to csv file under "{result_file}"')
 
   with open(result_file, 'wb') as csvfile:
     filewriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)

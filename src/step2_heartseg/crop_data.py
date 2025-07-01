@@ -56,7 +56,7 @@ def cropSitk(patient_id, patient, imagesRawSitk, inter_size):
   elif 'upOrigMskCen' in patient:
     mskCen = patient['upOrigMskCen']
   else:
-    print 'No mask center found for patient', patient_id
+    print(f'No mask center found for patient {patient_id}')
     return
 
   newSizeDown = [max(0, int(mskCen[2]-inter_size[0]/2)),
@@ -112,13 +112,13 @@ def check_images(patient_id, imagesRawSitk, final_size, final_spacing):
   for key in imagesRawSitk:
     if not tuple(np.round(final_size, 1)) == tuple(np.round(imagesRawSitk[key].GetSize(), 1)):
       check = False
-      print 'Wrong size for patient', patient_id
-      print tuple(np.round(final_size, 1)), tuple(np.round(imagesRawSitk[key].GetSize(), 1))
+      print(f'Wrong size for patient {patient_id}')
+      print(tuple(np.round(final_size, 1)), tuple(np.round(imagesRawSitk[key].GetSize(), 1)))
 
     if not tuple(np.round(final_spacing, 1)) == tuple(np.round(imagesRawSitk[key].GetSpacing(), 1)):
       check = False
-      print 'Wrong spacing for patient', patient_id
-      print tuple(np.round(final_spacing, 1)), tuple(np.round(imagesRawSitk[key].GetSpacing(), 1))
+      print(f'Wrong spacing for patient {patient_id}')
+      print(tuple(np.round(final_spacing, 1)), tuple(np.round(imagesRawSitk[key].GetSpacing(), 1)))
 
   return check
 
@@ -152,22 +152,23 @@ def downsampleSitk(imagesRawSitk, final_spacing, final_size):
   final_spacing[0] = origSize[0]*origSpacing[0]/final_size[0]
   final_spacing[1] = origSize[1]*origSpacing[1]/final_size[1]
 
-  resFilter = sitk.ResampleImageFilter()
-
   for key in imagesRawSitk:
+    resFilter = sitk.ResampleImageFilter()
     if 'Img' in key:
       method = sitk.sitkLinear
     else:
       method = sitk.sitkNearestNeighbor
-    imagesRawSitk[key] = resFilter.Execute(imagesRawSitk[key],
-                                           final_size,
-                                           sitk.Transform(),
-                                           method,
-                                           imagesRawSitk[key].GetOrigin(),
-                                           final_spacing,
-                                           imagesRawSitk[key].GetDirection(),
-                                           0,
-                                           imagesRawSitk[key].GetPixelIDValue())
+      
+    resFilter.SetSize(final_size)
+    resFilter.SetTransform(sitk.Transform())
+    resFilter.SetInterpolator(method)
+    resFilter.SetOutputOrigin(imagesRawSitk[key].GetOrigin())
+    resFilter.SetOutputSpacing(final_spacing)
+    resFilter.SetOutputDirection(imagesRawSitk[key].GetDirection())
+    resFilter.SetDefaultPixelValue(0)
+    resFilter.SetOutputPixelType(imagesRawSitk[key].GetPixelIDValue())
+    
+    imagesRawSitk[key] = resFilter.Execute(imagesRawSitk[key])
   return imagesRawSitk
 
 ## ----------------------------------------
@@ -189,13 +190,13 @@ def runCore(patients, output_dir, diff_dict, final_size, final_spacing, inter_si
   saveNrrd(patient_id, imagesRawSitk, output_dir, imgFile)
   diff_dict[patient_id] = [sizeDifExpand, sizeDifCrop, NSDexpt, NSUexp, NSD_crop, NSUcrop]
 
-  print 'Processing patient', patient_id
+  print(f'Processing patient {patient_id}')
 
 ## ----------------------------------------
 ## ----------------------------------------
 
 def crop_data(bb_calc_dir, output_dir, network_dir, inter_size, final_size, final_spacing, num_cores):
-  print "\nData cropping:"
+  print("\nData cropping:")
   
   pkl_input_file = os.path.join(bb_calc_dir, 'bbox.pkl')
   pkl_output_file = os.path.join(network_dir, 'diff_result.pkl')
@@ -203,7 +204,7 @@ def crop_data(bb_calc_dir, output_dir, network_dir, inter_size, final_size, fina
   # Process the train data
   with open(pkl_input_file, "rb") as f:
     patients = pickle.load(f)
-    print 'Found results for', len(patients), 'patients in "%s"'%(pkl_input_file)
+    print(f'Found results for {len(patients)} patients in "{pkl_input_file}"')
 
     if num_cores == 1:
       diff_dict = {}
@@ -218,9 +219,9 @@ def crop_data(bb_calc_dir, output_dir, network_dir, inter_size, final_size, fina
         pool.join()
         diff_dict = dict(diff_dict)
     else:
-      print 'Wrong core number set in config file'
+      print('Wrong core number set in config file')
       sys.exit()
 
-  print 'Saving', len(diff_dict), 'patients data to "%s"'%(pkl_output_file)
+  print(f'Saving {len(diff_dict)} patients data to "{pkl_output_file}"')
   with open(pkl_output_file, 'wb') as results_file:
     pickle.dump(diff_dict, results_file, pickle.HIGHEST_PROTOCOL)

@@ -89,7 +89,7 @@ else:
   
   # signal the user if "use_inferred_masks" if run is forced to "Test"
   if not use_inferred_masks:
-    print "Manual segmentation masks not provided. Forcing localization with the inferred masks."
+    print("Manual segmentation masks not provided. Forcing localization with the inferred masks.")
   
   # if manual segmentation masks are not available, force "use_inferred_masks" to True
   run = "Test"
@@ -143,7 +143,7 @@ if not os.path.exists(result_metrics_dir_path): os.mkdir(result_metrics_dir_path
 ## ----------------------------------------
 
 # run the segmentation pipeline
-print "\n--- STEP 2 - HEART SEGMENTATION ---\n"
+print("\n--- STEP 2 - HEART SEGMENTATION ---\n")
 
 # 
 compute_bbox.compute_bbox(cur_dir = curated_dir_path,

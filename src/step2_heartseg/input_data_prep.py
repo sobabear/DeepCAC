@@ -26,7 +26,7 @@ def get_files(input_dir, patient_files):
       mskFile = ''
     patient_files.append([imgFile, mskFile])
 
-  print "Found", len(patient_files), "patients"
+  print(f'Found {len(patient_files)} patients')
   return patient_files
 
 
@@ -49,7 +49,7 @@ def write_data_file(dataDir, dataFile, fileList, fill_holes, cube_size):
   for fileName in fileList:
     # patientID = (os.path.basename(fileName[0])).split('_')[0]
     patientID = os.path.basename(fileName[0]).replace('_img.nrrd', '')
-    print 'Process patient', patientID
+    print(f'Process patient {patientID}')
 
     nrrdReader.SetFileName(fileName[0])
     imgSitk = nrrdReader.Execute()
@@ -78,8 +78,8 @@ def write_data_file(dataDir, dataFile, fileList, fill_holes, cube_size):
 
 
 def input_data_prep(input_dir, output_dir, run, fill_holes, final_size):
-  print "\nInput data preparation:"
-  print 'Loading input data from "%s"'%(input_dir)
+  print("\nInput data preparation:")
+  print(f'Loading input data from "{input_dir}"')
   patient_files = []
   patient_files = get_files(input_dir, patient_files)
 

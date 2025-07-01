@@ -45,7 +45,7 @@ def get_files_for_patient(patients_dict, pred_dir, img_file, has_manual_seg, run
     if os.path.exists(raw_msk_file):
       patient['rawMsk'] = raw_msk_file
     else:
-      print 'No mask file found for patient', patient_id
+      print(f'No mask file found for patient {patient_id}')
       return
 
   if run == 'Test':
@@ -53,7 +53,7 @@ def get_files_for_patient(patients_dict, pred_dir, img_file, has_manual_seg, run
     if os.path.exists(prd_msk_file):
       patient['prdMsk'] = prd_msk_file
     else:
-      print 'No pred file found for patient', patient_id
+      print(f'No pred file found for patient {patient_id}')
       return
 
   patients_dict[patient_id] = patient
@@ -102,7 +102,7 @@ def get_bb_center(patient_id, cube):
     msk_ones = np.where(cube == 1)
     
     if len(msk_ones[0]) == 0:
-      print 'ERROR orig:', patient_id
+      print(f'ERROR orig: {patient_id}')
       return
       
     msk_bb = [np.min(msk_ones[0]), np.max(msk_ones[0]), np.min(msk_ones[1]), np.max(msk_ones[1]),
@@ -171,11 +171,11 @@ def compute_bbox(cur_dir, pred_dir, output_dir, num_cores, has_manual_seg, run):
     
   """
   
-  print "Bounding box calculation:"
+  print("Bounding box calculation:")
   
   img_files = glob(cur_dir + '/*_img.nrrd')
   
-  print 'Found', len(img_files), 'images under "%s"'%(cur_dir)
+  print(f'Found {len(img_files)} images under "{cur_dir}"')
 
   patients_dict = dict()
   for img_file in img_files:
@@ -185,7 +185,7 @@ def compute_bbox(cur_dir, pred_dir, output_dir, num_cores, has_manual_seg, run):
                           has_manual_seg = has_manual_seg,
                           run = run)
   
-  print 'Loading the masks inferred on step1 for', len(patients_dict), 'patients under "%s"'%(pred_dir)
+  print(f'Loading the masks inferred on step1 for {len(patients_dict)} patients under "{pred_dir}"')
 
   if num_cores == 1:
     result_dict = dict()
@@ -204,7 +204,7 @@ def compute_bbox(cur_dir, pred_dir, output_dir, num_cores, has_manual_seg, run):
       pool.join()
       result_dict = dict(result_dict)
   else:
-    print 'Wrong core number set in config file'
+    print('Wrong core number set in config file')
     sys.exit()
 
   results_file_name = os.path.join(output_dir, 'bbox.pkl')

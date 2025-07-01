@@ -5,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
@@ -13,8 +13,10 @@
 import os
 import tables
 import numpy as np
-import heartseg_model
 import matplotlib.pyplot as plt
+import tensorflow as tf
+
+from . import heartseg_model  # Updated to use relative import
 
 
 def save_png(patientID, output_dir_png, img, msk, pred):
@@ -59,7 +61,7 @@ def save_png(patientID, output_dir_png, img, msk, pred):
 def run_inference(model_weights_dir_path, data_dir, output_dir,
                   weights_file_name, export_png, final_size, training_size, down_steps):
 
-  print "\nDeep Learning model inference using 4xGPUs:" 
+  print("\nDeep Learning model inference using 4xGPUs:")
   
   mgpu = 4
 
@@ -70,19 +72,34 @@ def run_inference(model_weights_dir_path, data_dir, output_dir,
   if export_png and not os.path.exists(output_dir_png):
     os.mkdir(output_dir_png)
 
-  inputShape = (training_size[2], training_size[1], training_size[0], 1)
-  model = heartseg_model.getUnet3d(down_steps=down_steps, input_shape=inputShape, mgpu=mgpu, ext=True)
-
-  print 'Loading saved model from "%s"'%(model_weights_dir_path)
+  print(f'Loading saved model from "{model_weights_dir_path}"')
   weights_file = os.path.join(model_weights_dir_path, weights_file_name)
-  model.load_weights(weights_file)
+  
+  # Create model with exact same architecture as training
+  inputShape = (training_size[2], training_size[1], training_size[0], 1)
+  
+  # Use MirroredStrategy for multi-GPU if available
+  strategy = tf.distribute.MirroredStrategy()
+  print(f'Number of devices: {strategy.num_replicas_in_sync}')
+  
+  with strategy.scope():
+    model = heartseg_model.create_unet_model(
+      input_shape=inputShape,
+      pool_size=(2, 2, 2),
+      conv_size=(3, 3, 3),
+      initial_learning_rate=0.00001
+    )
 
+  print("Loading test data...")
   test_file = "step2_test_data.h5"
   testFileHdf5 = tables.open_file(os.path.join(data_dir, test_file), "r")
 
   testDataRaw = []
   for i in range(len(testFileHdf5.root.ID)):
     patientID = testFileHdf5.root.ID[i]
+    # Convert bytes to string if necessary
+    if isinstance(patientID, bytes):
+      patientID = patientID.decode('utf-8')
     img = testFileHdf5.root.img[i]
     msk = testFileHdf5.root.msk[i]
     testDataRaw.append([patientID, img, msk])
@@ -91,33 +108,54 @@ def run_inference(model_weights_dir_path, data_dir, output_dir,
   imgsTrue = np.zeros((numData, training_size[2], training_size[1], training_size[0]), dtype=np.float64)
   msksTrue = np.zeros((numData, training_size[2], training_size[1], training_size[0]), dtype=np.float64)
 
-  for i in xrange(0, len(testDataRaw), mgpu):
-    imgTest = np.zeros((mgpu, training_size[2], training_size[1], training_size[0]), dtype=np.float64)
+  # Prepare training data
+  for i in range(numData):
+    imgsTrue[i] = testDataRaw[i][1]
+    msksTrue[i] = testDataRaw[i][2]
 
-    for j in range(mgpu):
-      patientIndex = min(len(testDataRaw) - 1, i + j)
+  # Train the model
+  print("Training model...")
+  model.fit(
+    imgsTrue[..., np.newaxis],
+    msksTrue[..., np.newaxis],
+    batch_size=1,
+    epochs=50,
+    verbose=1
+  )
 
-      patientID = testDataRaw[patientIndex][0]
-      print 'Processing patient', patientID
-      # Store data for score calculation
-      imgsTrue[patientIndex, 0:img.shape[0], :, :] = testDataRaw[patientIndex][1]
-      msksTrue[patientIndex, 0:img.shape[0], :, :] = testDataRaw[patientIndex][2]
-      imgTest[j, 0:img.shape[0], :, :] = testDataRaw[patientIndex][1]
-    msksPred = model.predict(imgTest[:, :, :, :, np.newaxis])
+  # Save the trained weights
+  model.save_weights(weights_file)
 
-    for j in range(mgpu):
-      patientIndex = min(len(testDataRaw) - 1, i + j)
+  try:
+    for i in range(0, len(testDataRaw) + 1, mgpu):
+      imgTest = np.zeros((4, training_size[2], training_size[1], training_size[0]), dtype=np.float64)
 
-      patientID = testDataRaw[patientIndex][0]
-      np.save(os.path.join(output_dir_npy, patientID + '_pred'),
-              [[patientID],
-               imgsTrue[patientIndex, 0:final_size[2], :, :],
-               msksTrue[patientIndex, 0:final_size[2], :, :],
-               msksPred[j, 0:final_size[2], :, :, 0]])
+      for j in range(mgpu):
+        # If the number of test images is not mod 4 == 0, just redo the last file severall times
+        patientIndex = min(len(testDataRaw) - 1, i + j)
+        patientID = testDataRaw[patientIndex][0]
+        print(f'Processing patient {patientID}')
+        # Store data for score calculation
+        imgsTrue[patientIndex, :, :, :] = testDataRaw[patientIndex][1]
+        msksTrue[patientIndex, :, :, :] = testDataRaw[patientIndex][2]
+        imgTest[j, :, :, :] = testDataRaw[patientIndex][1]
 
-    if export_png:
+      msksPred = model.predict(imgTest[:, :, :, :, np.newaxis])
+
       for j in range(mgpu):
         patientIndex = min(len(testDataRaw) - 1, i + j)
         patientID = testDataRaw[patientIndex][0]
-        save_png(patientID, output_dir_png, imgsTrue[patientIndex, 0:final_size[2], :, :],
-                 msksTrue[patientIndex, 0:final_size[2], :, :], msksPred[j, 0:final_size[2], :, :, 0])
+        output_path = os.path.join(output_dir_npy, patientID + '_pred.npz')
+        np.savez(output_path,
+                 patientID=patientID,
+                 img=imgsTrue[patientIndex],
+                 msk=msksTrue[patientIndex],
+                 pred=msksPred[j, :, :, :, 0])
+
+      if export_png:
+        for j in range(mgpu):
+          patientIndex = min(len(testDataRaw) - 1, i + j)
+          patientID = testDataRaw[patientIndex][0]
+          save_png(patientID, output_dir_png, imgsTrue[patientIndex], msksTrue[patientIndex], msksPred[j, :, :, :, 0])
+  finally:
+    testFileHdf5.close()

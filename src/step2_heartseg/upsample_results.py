@@ -116,7 +116,7 @@ def run_core(cur_input, crop_input, output_dir, pkl_data, inter_size, patient):
   nrrd_writer = sitk.ImageFileWriter()
 
   patient_id = os.path.basename(patient).replace('_pred.npy', '')
-  print 'Processing patient', patient_id
+  print(f'Processing patient {patient_id}')
 
   # Read predicted mask
   pred_npy_128 = np.load(patient, allow_pickle=True)[3]
@@ -127,7 +127,7 @@ def run_core(cur_input, crop_input, output_dir, pkl_data, inter_size, patient):
   img_true_file = os.path.join(cur_input, patient_id+'_img.nrrd')
 
   if not os.path.exists(img_true_file):
-    print 'WARNING: Could not find image file for patient', patient_id
+    print(f'WARNING: Could not find image file for patient {patient_id}')
     return
   nrrd_reader.SetFileName(img_true_file)
   imgSitk_512 = nrrd_reader.Execute()
@@ -151,8 +151,8 @@ def run_core(cur_input, crop_input, output_dir, pkl_data, inter_size, patient):
   # expand cropped mask to original size
   pred_sitk_512 = expand_mask(patient_id, pkl_data, pred_sitk_288, imgSitk_512)
   if not pred_sitk_512.GetSize()[2] == imgSitk_512.GetSize()[2]:
-    print 'ERROR: Wrong upsampled size for patient'
-    print patient_id, pred_sitk_512.GetSize()[2] - imgSitk_512.GetSize()[2]
+    print(f'ERROR: Wrong upsampled size for patient {patient_id}')
+    print(f'{patient_id} {pred_sitk_512.GetSize()[2] - imgSitk_512.GetSize()[2]}')
     return
 
   # clean masks from small objects
@@ -168,16 +168,16 @@ def run_core(cur_input, crop_input, output_dir, pkl_data, inter_size, patient):
 
 def upsample_results(cur_input, crop_input, network_dir, test_dir, output_dir, inter_size, num_cores):
 
-  print "\nData upsampling:"  
+  print("\nData upsampling:")  
   pkl_file = os.path.join(network_dir, 'diff_result.pkl')
 
-  print 'Loading image data from "%s"'%(pkl_file)
+  print(f'Loading image data from "{pkl_file}"')
 
   pkl_data = pickle.load(open(pkl_file, 'rb'))
 
   test_output = os.path.join(test_dir, 'npy')
   patients = glob(test_output + '/*')
-  print 'Found', len(patients), 'patients under "%s"'%(test_output)
+  print(f'Found {len(patients)} patients under "{test_output}"')
 
   if num_cores == 1:
     for patient in patients:
@@ -188,5 +188,5 @@ def upsample_results(cur_input, crop_input, network_dir, test_dir, output_dir, i
     pool.close()
     pool.join()
   else:
-    print 'Wrong core number set in config file'
+    print('Wrong core number set in config file')
     sys.exit()
