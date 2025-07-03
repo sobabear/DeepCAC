@@ -5,7 +5,7 @@
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
@@ -13,16 +13,16 @@
 import os, math, pickle, sys
 
 from functools import partial
-from tensorflow.python.keras import utils
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.engine import Input
-from tensorflow.python.keras.optimizers import Adam, SGD
-from tensorflow.python.keras.models import load_model, Model
-from tensorflow.python.keras.utils import *
-from tensorflow.python.keras.layers.merge import concatenate
-from tensorflow.python.keras.layers import Conv3D, MaxPooling3D, UpSampling3D, Activation, BatchNormalization
-from tensorflow.python.keras.layers import Dropout
-from tensorflow.python.keras.callbacks import ModelCheckpoint, CSVLogger, Callback, LearningRateScheduler
+from tensorflow.keras import utils
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Input
+from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.models import load_model, Model
+from tensorflow.keras.utils import *
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers import Conv3D, MaxPooling3D, UpSampling3D, Activation, BatchNormalization
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, Callback, LearningRateScheduler
 
 
 def dice_coef(y_true, y_pred, smooth=1.):
@@ -55,7 +55,7 @@ def getUnet3d(down_steps, input_shape, pool_size, conv_size, initial_learning_ra
     return getUnet3d_4_MGPU(input_shape, pool_size=pool_size, conv_size=conv_size,
                             initial_learning_rate=initial_learning_rate, mgpu=mgpu)
   else:
-    print 'Wrong U-Net parameters specified ("down_steps")'
+    print('Wrong U-Net parameters specified ("down_steps")')
 
 ## ----------------------------------------
 ## ----------------------------------------
@@ -107,13 +107,14 @@ def getUnet3d_4_MGPU(input_shape, pool_size=(2, 2, 2), conv_size=(3, 3, 3),
 
   if mgpu > 1:
     model = Model(inputs=inputs, outputs=act)
-    parallel_model = multi_gpu_model(model, gpus=mgpu)
-    parallel_model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
-                           metrics=[dice_coef])
-    return parallel_model
+    # Multi-GPU training is now handled differently in modern TensorFlow
+    # Using single GPU for now
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
+                  metrics=[dice_coef])
+    return model
   else:
     model = Model(inputs=inputs, outputs=act)
-    model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
                   metrics=[dice_coef])
     return model
 
@@ -158,13 +159,14 @@ def getUnet3d_3_MGPU(input_shape, pool_size=(2, 2, 2), conv_size=(3, 3, 3),
 
   if mgpu > 1:
     model = Model(inputs=inputs, outputs=act)
-    parallel_model = multi_gpu_model(model, gpus=mgpu)
-    parallel_model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
-                           metrics=[dice_coef])
-    return parallel_model
+    # Multi-GPU training is now handled differently in modern TensorFlow
+    # Using single GPU for now
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
+                  metrics=[dice_coef])
+    return model
   else:
     model = Model(inputs=inputs, outputs=act)
-    model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
                   metrics=[dice_coef])
     return model
 
@@ -221,29 +223,14 @@ def getUnet3d_3_MGPU_extended(input_shape, pool_size=(2, 2, 2), conv_size=(3, 3,
 
   if mgpu > 1:
     model = Model(inputs=inputs, outputs=act)
-    parallel_model = multi_gpu_model(model, gpus=mgpu)
-    if optimizer == 'ADAM':
-      parallel_model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
-                             metrics=[dice_coef])
-    elif optimizer == 'SGD':
-      sgd = SGD(lr=initial_learning_rate, decay=0.01, momentum=0.5, nesterov=True)
-      parallel_model.compile(optimizer=sgd, loss=dice_coef_loss,
-                             metrics=[dice_coef])
-    else:
-      print('Wrong optimizer given')
-      sys.exit()
-    
-    """
-    print('---------------------------------------------------------------')
-    print('Using model EXTENDED: DownSteps: 3 - optimizer:', optimizer, '- pool size:', pool_size,
-          '- conv size:', conv_size, '- lr:', initial_learning_rate, '- mgpu:', mgpu,
-          '- drop out:', drop_out)
-    print('---------------------------------------------------------------')
-    """
-    return parallel_model
+    # Multi-GPU training is now handled differently in modern TensorFlow
+    # Using single GPU for now
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
+                  metrics=[dice_coef])
+    return model
   else:
     model = Model(inputs=inputs, outputs=act)
-    model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coef_loss,
+    model.compile(optimizer=Adam(learning_rate=initial_learning_rate), loss=dice_coef_loss,
                   metrics=[dice_coef])
     return model
 

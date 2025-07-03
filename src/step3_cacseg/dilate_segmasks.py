@@ -26,7 +26,7 @@ def run_core(pred_dir, output_dir, dil_z_value, patient):
   patient_id = (os.path.basename(patient)).split('_')[0]
   output_file = patient.replace(pred_dir, output_dir)
 
-  print "Processing patient", patient_id
+  print(f"Processing patient {patient_id}")
 
   # Read nrrd pred file and convert to npy
   nrrd_reader.SetFileName(patient)
@@ -34,7 +34,7 @@ def run_core(pred_dir, output_dir, dil_z_value, patient):
   msk_pred_cube = sitk.GetArrayFromImage(msk_pred_sitk)
 
   if np.max(msk_pred_cube) == 0:
-    print 'ERROR - Found emtpy mask for', patient_id
+    print(f'ERROR - Found emtpy mask for {patient_id}')
     return
 
   # Clean mask for dilation
@@ -76,10 +76,10 @@ def run_core(pred_dir, output_dir, dil_z_value, patient):
 
 def dilate_segmasks(pred_dir, output_dir, num_cores, dil_z_value = 11):
   
-  print "Segmentation masks dilation:"
+  print("Segmentation masks dilation:")
 
   patients = glob(pred_dir + '/*.nrrd')
-  print 'Found', len(patients), 'patients under "%s"'%(pred_dir)
+  print(f'Found {len(patients)} patients under "{pred_dir}"')
 
   pool = Pool(processes=num_cores)
   pool.map(partial(run_core, pred_dir, output_dir, dil_z_value), patients)

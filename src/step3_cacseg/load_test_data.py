@@ -31,7 +31,7 @@ def load_test_data(inputFolder, mask=False):
 
     imgFile = os.path.join(inputFolder, patientID + '_img.npy')
     if not os.path.exists(imgFile):
-      print 'WARNING - img not found for patient', patientID
+      print(f'WARNING - img not found for patient {patientID}')
       continue
     try:
       img = np.load(imgFile)
@@ -43,7 +43,7 @@ def load_test_data(inputFolder, mask=False):
       mskFile = os.path.join(inputFolder, patientID + '_msk.npy')
 
       if not os.path.exists(mskFile):
-        print 'WARNING - msk not found for patient', patientID
+        print(f'WARNING - msk not found for patient {patientID}')
         continue
       try:
         msk = np.load(mskFile)

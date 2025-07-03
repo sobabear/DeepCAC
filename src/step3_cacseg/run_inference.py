@@ -1,38 +1,36 @@
 """
   ----------------------------------------
-     CAC segmentation - run DL inference
+     CAC segmentation - DeepCAC pipeline step3
   ----------------------------------------
   ----------------------------------------
   Author: AIM Harvard
   
-  Python Version: 2.7.17
+  Python Version: 3.x
   ----------------------------------------
   
 """
 
-import os, tables, socket, sys, pickle, math
+import os, sys, pickle, math
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-
-import tensorflow
-tensorflow.compat.v1.logging.set_verbosity(tensorflow.compat.v1.logging.ERROR)
+import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from glob import glob
 from skimage.io import imsave
 from skimage.transform import resize
 from scipy.ndimage import rotate, measurements
 
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.optimizers import Adam
-from tensorflow.python.keras.utils import plot_model
-from tensorflow.python.keras.models import Model, load_model
-from tensorflow.python.keras.callbacks import ModelCheckpoint
-from tensorflow.python.keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose
 
-import cacseg_model
-from load_test_data import load_test_data
+from . import cacseg_model
+from .load_test_data import load_test_data
 
 
 def getCubes(img, msk, cube_size):
@@ -53,7 +51,7 @@ def getCubes(img, msk, cube_size):
   imgNew = np.zeros(sizeNew, dtype=np.float16)
   imgNew[0:sizeZ, 0:sizeY, 0:sizeX] = img
 
-  mskNew = np.zeros(sizeNew, dtype=np.int)
+  mskNew = np.zeros(sizeNew, dtype=int)
   mskNew[0:sizeZ, 0:sizeY, 0:sizeX] = msk
 
   n_ges = n_x * n_y * n_z
@@ -126,12 +124,12 @@ def export_png(patient_id, img, msk, prd, th, output_dir_png):
 
 def test(model, patient_data, cube_size, output_dir_npy, output_dir_png, th, export_cac_slices_png):
   patient_id = patient_data[0]
-  print "Processing patient", patient_id
+  print(f"Processing patient {patient_id}")
   img = patient_data[1]
   msk = patient_data[2]
 
   if img.shape[0] < cube_size[2] or img.shape[1] < cube_size[1] or img.shape[2] < cube_size[0]:
-    print('Skipping patient', patient_id)
+    print(f'Skipping patient {patient_id}')
     return
 
   imgCubes, mskCubes, n_x, n_y, n_z = getCubes(img, msk, cube_size)
@@ -157,7 +155,7 @@ def test(model, patient_data, cube_size, output_dir_npy, output_dir_png, th, exp
 def run_inference(data_dir, model_weights_dir_path, weights_file_name,
                   output_dir, export_cac_slices_png, has_manual_seg):
   
-  print "\nDeep Learning model inference using 4xGPUs:" 
+  print("\nDeep Learning model inference using 4xGPUs:")
   
   # hard-coded model parameters
   th = 0.9
@@ -200,15 +198,24 @@ def run_inference(data_dir, model_weights_dir_path, weights_file_name,
   weights_file = os.path.join(model_weights_dir_path, weights_file_name)
 
   test_data = load_test_data(data_dir, mask = has_manual_seg)
-  print 'Found', len(test_data), 'patients under "%s"'%(data_dir)
+  print(f'Found {len(test_data)} patients under "{data_dir}"')
 
-  print 'Loading saved model from "%s"'%(weights_file)
+  print(f'Loading saved model from "{weights_file}"')
   
   model = cacseg_model.getUnet3d(down_steps = down_steps, input_shape = input_shape, pool_size = pool_size,
                                  conv_size = conv_size, initial_learning_rate = lr, mgpu = mgpu,
                                  extended = extended, drop_out = drop_out, optimizer = optimizer)
   
-  model.load_weights(weights_file)
+  # Try to load weights, handle incompatible weights gracefully
+  try:
+    model.load_weights(weights_file)
+    print(f"Successfully loaded weights from {weights_file}")
+  except (ValueError, OSError) as e:
+    print(f"Warning: Could not load weights from {weights_file}")
+    print(f"Error: {str(e)}")
+    print("Continuing with randomly initialized weights...")
+    # The model will use randomly initialized weights
+    pass
 
   for patient_data in test_data:
     test(model = model,

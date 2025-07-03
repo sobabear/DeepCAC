@@ -113,18 +113,35 @@ def run_inference(model_weights_dir_path, data_dir, output_dir,
     imgsTrue[i] = testDataRaw[i][1]
     msksTrue[i] = testDataRaw[i][2]
 
-  # Train the model
-  print("Training model...")
-  model.fit(
-    imgsTrue[..., np.newaxis],
-    msksTrue[..., np.newaxis],
-    batch_size=1,
-    epochs=50,
-    verbose=1
-  )
-
-  # Save the trained weights
-  model.save_weights(weights_file)
+  # Check if weights exist and load them, otherwise train
+  if os.path.exists(weights_file):
+    print("Loading existing weights...")
+    try:
+      model.load_weights(weights_file)
+      print("Successfully loaded existing weights.")
+    except Exception as e:
+      print(f"Error loading weights: {e}")
+      print("Training new model...")
+      model.fit(
+        imgsTrue[..., np.newaxis],
+        msksTrue[..., np.newaxis],
+        batch_size=1,
+        epochs=50,
+        verbose=1
+      )
+      model.save_weights(weights_file)
+      print(f"Model weights saved to {weights_file}")
+  else:
+    print("No existing weights found. Training from scratch...")
+    model.fit(
+      imgsTrue[..., np.newaxis],
+      msksTrue[..., np.newaxis],
+      batch_size=1,
+      epochs=50,
+      verbose=1
+    )
+    model.save_weights(weights_file)
+    print(f"Model weights saved to {weights_file}")
 
   try:
     for i in range(0, len(testDataRaw) + 1, mgpu):
@@ -145,12 +162,15 @@ def run_inference(model_weights_dir_path, data_dir, output_dir,
       for j in range(mgpu):
         patientIndex = min(len(testDataRaw) - 1, i + j)
         patientID = testDataRaw[patientIndex][0]
-        output_path = os.path.join(output_dir_npy, patientID + '_pred.npz')
-        np.savez(output_path,
-                 patientID=patientID,
-                 img=imgsTrue[patientIndex],
-                 msk=msksTrue[patientIndex],
-                 pred=msksPred[j, :, :, :, 0])
+        output_path = os.path.join(output_dir_npy, patientID + '_pred.npy')
+        # Save in the format expected by upsample_results: [patientID, img, msk, pred]
+        data_array = np.array([
+          testDataRaw[patientIndex][0],  # [0] = patientID
+          imgsTrue[patientIndex],        # [1] = img
+          msksTrue[patientIndex],        # [2] = msk  
+          msksPred[j, :, :, :, 0]        # [3] = pred
+        ], dtype=object)
+        np.save(output_path, data_array)
 
       if export_png:
         for j in range(mgpu):

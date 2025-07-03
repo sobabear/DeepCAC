@@ -144,9 +144,13 @@ def run_core(cur_input, crop_input, output_dir, pkl_data, inter_size, patient):
 
   # upsample image
   resFilter = sitk.ResampleImageFilter()
-  pred_sitk_288 = resFilter.Execute(pred_sitk_128, inter_size, sitk.Transform(), sitk.sitkLinear,
-                                    pred_sitk_128.GetOrigin(), interSpacing, pred_sitk_128.GetDirection(),
-                                    0, pred_sitk_128.GetPixelIDValue())
+  resFilter.SetSize(inter_size)
+  resFilter.SetOutputSpacing(interSpacing)
+  resFilter.SetOutputOrigin(pred_sitk_128.GetOrigin())
+  resFilter.SetOutputDirection(pred_sitk_128.GetDirection())
+  resFilter.SetInterpolator(sitk.sitkLinear)
+  resFilter.SetDefaultPixelValue(0)
+  pred_sitk_288 = resFilter.Execute(pred_sitk_128)
 
   # expand cropped mask to original size
   pred_sitk_512 = expand_mask(patient_id, pkl_data, pred_sitk_288, imgSitk_512)

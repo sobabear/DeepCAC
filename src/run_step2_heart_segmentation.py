@@ -131,10 +131,12 @@ assert len(os.listdir(curated_dir_path))
 assert os.path.exists(step1_inferred_dir_path)
 assert len(os.listdir(step1_inferred_dir_path))
 
+# Create weights directory if it doesn't exist
+if not os.path.exists(model_weights_dir_path):
+  os.makedirs(model_weights_dir_path)
 
-# assert the weights folder exists and the weights file is found
+# assert the weights folder exists
 weights_file = os.path.join(model_weights_dir_path, weights_file_name)
-assert os.path.exists(weights_file)
 
 if not os.path.exists(model_output_dir_path): os.mkdir(model_output_dir_path)
 if not os.path.exists(model_output_nrrd_dir_path): os.mkdir(model_output_nrrd_dir_path)

@@ -55,7 +55,7 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
 
   # Read the raw image file
   if not os.path.exists(img_RAW_file):
-    print 'ERROR - No image found for patient', patient_id
+    print(f'ERROR - No image found for patient {patient_id}')
     return
 
   nrrdReader.SetFileName(img_RAW_file)
@@ -68,19 +68,19 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
   msk_PRD_cube = sitk.GetArrayFromImage(msk_PRD_sitk)
 
   if not img_RAW_cube.shape == msk_PRD_cube.shape:
-    print 'ERROR: Wrong dimesnion found for patient', patient_id
-    print img_RAW_cube.shape, msk_PRD_cube.shape
+    print(f'ERROR: Wrong dimesnion found for patient {patient_id}')
+    print(f'{img_RAW_cube.shape} {msk_PRD_cube.shape}')
     return
 
   if np.sum(msk_PRD_cube) == 0:
-    print 'Found empty predicted mask for patient', patient_id
+    print(f'Found empty predicted mask for patient {patient_id}')
     return
 
   if has_manual_seg:
     msk_RAW_file = os.path.join(raw_input, patient_id + '_msk.nrrd')
 
     if not os.path.exists(msk_RAW_file):
-      print 'ERROR - No mask file found for patient', patient_id
+      print(f'ERROR - No mask file found for patient {patient_id}')
       return
 
     nrrdReader.SetFileName(msk_RAW_file)
@@ -88,15 +88,15 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
     msk_RAW_cube = sitk.GetArrayFromImage(msk_RAW_sitk)
 
     if not img_RAW_cube.shape == msk_RAW_cube.shape:
-      print 'ERROR: Wrong dimension found for patient', patient_id
-      print img_RAW_cube.shape, msk_RAW_cube.shape, msk_PRD_cube.shape
+      print(f'ERROR: Wrong dimension found for patient {patient_id}')
+      print(f'{img_RAW_cube.shape} {msk_RAW_cube.shape} {msk_PRD_cube.shape}')
       return
 
     if np.sum(msk_RAW_cube) > 0:
       msk_RAW_cube[msk_RAW_cube <= 2] = 0
       msk_RAW_cube[msk_RAW_cube > 0] = 1
     else:
-      print 'Warning - Found empty manual mask for patient', patient_id
+      print(f'Warning - Found empty manual mask for patient {patient_id}')
 
   msk_PRD_cube[msk_PRD_cube >= 0.5] = 1
   msk_PRD_cube[msk_PRD_cube < 0.5] = 0
@@ -109,7 +109,7 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
   msk_PRD_ones = np.where(msk_PRD_cube > 0)
 
   if np.sum(msk_PRD_ones) == 0:
-    print 'ERROR: Found empty mask for patient', patient_id
+    print(f'ERROR: Found empty mask for patient {patient_id}')
     return
 
   hrt_BB = [np.min(msk_PRD_ones[0]), np.max(msk_PRD_ones[0]),
@@ -133,7 +133,7 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
     hrt_BB[4] = max(0, hrt_BB[4] - offset)
     hrt_BB[5] = hrt_BB[4] + patch_size[2]
 
-  print "Processing patient", patient_id
+  print(f"Processing patient {patient_id}")
 
   # Crop files to heart
   img_RAW_croped_cube = img_HRT_cube[hrt_BB[0]:hrt_BB[1], hrt_BB[2]:hrt_BB[3], hrt_BB[4]:hrt_BB[5]]
@@ -163,10 +163,10 @@ def run_core(raw_input, data_output, png_output, patch_size, has_manual_seg, exp
 
 def crop_data(raw_input, prd_input, data_output, png_output, patch_size, num_cores, has_manual_seg, export_png):
 
-  print "\nHeart cropping:"
+  print("\nHeart cropping:")
 
   prd_files = glob(prd_input + '/*.nrrd')
-  print 'Found', len(prd_files), 'files under "%s"'%(prd_input)
+  print(f'Found {len(prd_files)} files under "{prd_input}"')
 
   if num_cores == 1:
     for prd_file in prd_files:

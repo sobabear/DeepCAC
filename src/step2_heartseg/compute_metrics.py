@@ -265,7 +265,7 @@ def compute_metrics(cur_dir, pred_dir, output_dir, raw_spacing, num_cores, mask)
   result_file = os.path.join(output_dir, 'results.csv')
   print(f'Saving results to csv file under "{result_file}"')
 
-  with open(result_file, 'wb') as csvfile:
+  with open(result_file, 'w', newline='') as csvfile:
     filewriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
     title_row = ['PatientID', 'MaxImgHu', 'mskVox', 'mskVol', 'mskMeanHu', 'mskMinHu', 'mskMaxHu', 'prdVox', 'prdVol',
